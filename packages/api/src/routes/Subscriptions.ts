@@ -6,14 +6,17 @@ import {
   RouteShorthandOptions,
 } from "fastify";
 
-import {SubscriptionDataProvider} from "../db/Subscription";
+import {
+  SubscriptionDataProvider,
+  SubscriptionMetadata,
+} from "../db/Subscription";
 
 const SCHEMAS = {
   Responses: {
     Subscription: {
       type: "object",
       properties: {
-        id: {type: "string", pattern: "stripe"},
+        id: {type: "string"},
         name: {type: "string"},
         currency: {type: "string"},
         description: {type: "string"},
@@ -26,17 +29,27 @@ const SCHEMAS = {
   },
 };
 
-// async function get(request: FastifyRequest, reply: FastifyReply) {
-//   try {
-//     const {id} = request.params as {id: string};
-//     const subscription = await SubscriptionDataProvider.
-//   } catch (error) {
-//     request.log.error(error);
-//     throw error;
-//   }
-// }
+const GET_OPTIONS: RouteShorthandOptions = {
+  schema: {
+    params: {
+      type: "object",
+      properties: {
+        id: {type: "string", description: "Subscription ID"},
+      },
+    },
+    response: {
+      200: SCHEMAS.Responses.Subscription,
+    },
+  },
+};
 
-const postOptions: RouteShorthandOptions = {
+async function get(request: FastifyRequest, reply: FastifyReply) {
+  const {id} = request.params as {id: string};
+  const subscription = await SubscriptionDataProvider.get(id, "stripe");
+  reply.status(200).send(subscription.toDict());
+}
+
+const POST_OPTIONS: RouteShorthandOptions = {
   schema: {
     body: {
       type: "object",
@@ -59,20 +72,14 @@ const postOptions: RouteShorthandOptions = {
 };
 
 async function post(request: FastifyRequest, reply: FastifyReply) {
-  try {
-    const {providerName, ...metadata} = request.body as Record<string, any>;
+  const {providerName, ...metadata} = request.body as Record<string, any>;
 
-    const subscription = await SubscriptionDataProvider.create(
-      metadata,
-      providerName,
-    );
+  const subscription = await SubscriptionDataProvider.create(
+    metadata as SubscriptionMetadata,
+    providerName,
+  );
 
-    reply.status(201).send(subscription.toDict());
-  } catch (error) {
-    console.log("error: ", error);
-    request.log.error(error);
-    throw error;
-  }
+  reply.status(201).send(subscription.toDict());
 }
 
 export default function (
@@ -80,8 +87,7 @@ export default function (
   _: FastifyPluginOptions,
   done: (err?: Error) => void,
 ) {
-  // fastify.post("/get", postOptions, get);
-  fastify.post("/subscriptions", postOptions, post);
-
+  fastify.get("/subscriptions/:id", GET_OPTIONS, get);
+  fastify.post("/subscriptions", POST_OPTIONS, post);
   done();
 }

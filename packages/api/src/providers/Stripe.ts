@@ -1,23 +1,14 @@
 import Stripe from "stripe";
 
 import Provider from "./Providers";
-
-interface StripeSubscriptionMetadata {
-  name: string;
-  description?: string;
-  currency: string;
-  price: number;
-  interval: "day" | "month" | "week" | "year";
-  intervalCount: number;
-  trialPeriodDays: number;
-}
+import {SubscriptionMetadata} from "../db/Subscription";
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY, {
   apiVersion: "2020-08-27",
 });
 
-class StripeProvider extends Provider<StripeSubscriptionMetadata> {
-  async getSubscription(id: string) {
+class StripeProvider extends Provider {
+  async getSubscription(id: string): Promise<SubscriptionMetadata> {
     const price = await stripe.prices.retrieve(id);
     const product = await stripe.products.retrieve(price.product as string);
     return {
@@ -31,7 +22,7 @@ class StripeProvider extends Provider<StripeSubscriptionMetadata> {
     };
   }
 
-  async createSubscription(metadata: StripeSubscriptionMetadata) {
+  async createSubscription(metadata: SubscriptionMetadata) {
     const product = await stripe.products.create({
       name: metadata.name,
       description: metadata.description,

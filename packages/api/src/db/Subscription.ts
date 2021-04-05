@@ -1,25 +1,31 @@
 import q from "faunadb";
-import {v4 as uuid} from "uuid";
 
-import db from "./FaunaClient";
+import db, {FaunaDocument, FaunaRef} from "./FaunaClient";
 import getProvider from "../providers/getProvider";
 
-class Subscription<T> {
-  readonly ref: number;
-  readonly externalID: string;
+export type SubscriptionMetadata = {
+  name: string;
+  description?: string;
+  currency: string;
+  price: number;
+  interval: "day" | "month" | "week" | "year";
+  intervalCount?: number;
+  trialPeriodDays?: number;
+};
+
+class Subscription {
+  readonly ref: FaunaRef;
   providerName: string;
   providerExternalID: string;
-  metadata: T;
+  metadata: SubscriptionMetadata;
 
   constructor(
-    ref: number,
-    externalID: string,
+    ref: FaunaRef,
     providerName: string,
     providerExternalID: string,
-    metadata: T,
+    metadata: SubscriptionMetadata,
   ) {
     this.ref = ref;
-    this.externalID = externalID;
     this.providerName = providerName;
     this.providerExternalID = providerExternalID;
     this.metadata = metadata;
@@ -27,7 +33,8 @@ class Subscription<T> {
 
   toDict() {
     return {
-      id: this.externalID,
+      id: this.ref.id,
+
       providerName: this.providerName,
       providerExternalID: this.providerExternalID,
       ...this.metadata,
@@ -36,32 +43,50 @@ class Subscription<T> {
 }
 
 export const SubscriptionDataProvider = {
-  // TODO: Make metadata more strict
-  async create(metadata: Record<string, any>, providerName: string) {
+  async get(id: string, providerName: string) {
     const provider = getProvider(providerName);
 
-    const externalID = uuid();
+    const result = await db.query<
+      FaunaDocument<{providerName: string; providerExternalID: string}>
+    >(q.Get(q.Ref(q.Collection("subscriptions"), id)));
 
+    const metadata = await provider.getSubscription(
+      result.data.providerExternalID,
+    );
+
+    return new Subscription(
+      result.ref,
+      result.data.providerName,
+      result.data.providerExternalID,
+      metadata,
+    );
+  },
+
+  // TODO: Make metadata more strict
+  async create(metadata: SubscriptionMetadata, providerName: string) {
+    const provider = getProvider(providerName);
     const providerExternalID = await provider.createSubscription(metadata);
 
-    // TODO: Think about only storing providerExternalID + externalID
-    // Might not need providerName on each subscription due to org wide settings
-    // If multiple providers are supported then we will need it.
-    // Metadata may be good to have cached but we will always need to rely on the provider
-    // for up to day info.
-
-    const result = await db.query(
+    // TODO: Think about potentially storing some metadata as well
+    const result = await db.query<FaunaDocument>(
       q.Create(q.Collection("subscriptions"), {
-        data: {providerName, providerExternalID, externalID, ...metadata},
+        data: {providerName, providerExternalID},
       }),
     );
 
     const subscription = new Subscription(
-      result["ref"],
-      externalID,
+      result.ref,
       providerName,
       providerExternalID,
-      metadata,
+      {
+        name: metadata.name,
+        description: metadata.description || "",
+        currency: metadata.currency,
+        price: metadata.price,
+        interval: "month",
+        intervalCount: metadata.intervalCount || 1,
+        trialPeriodDays: metadata.trialPeriodDays || 0,
+      },
     );
 
     return subscription;
