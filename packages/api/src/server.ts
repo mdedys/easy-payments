@@ -1,6 +1,7 @@
 import fastify from "fastify";
 import Swagger from "fastify-swagger";
 
+import Customers from "./routes/Customers";
 import Subscriptions from "./routes/Subscriptions";
 
 const app = fastify({logger: true});
@@ -28,6 +29,7 @@ app.register(Swagger, {
   exposeRoute: true,
 });
 
+app.register(Customers, {prefix: "api"});
 app.register(Subscriptions, {prefix: "api"});
 
 const PORT = process.env.PORT || 3010;

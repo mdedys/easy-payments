@@ -45,7 +45,7 @@ const GET_OPTIONS: RouteShorthandOptions = {
 
 async function get(request: FastifyRequest, reply: FastifyReply) {
   const {id} = request.params as {id: string};
-  const subscription = await SubscriptionDataProvider.get(id, "stripe");
+  const subscription = await SubscriptionDataProvider.get(id);
   reply.status(200).send(subscription.toDict());
 }
 
@@ -54,7 +54,6 @@ const POST_OPTIONS: RouteShorthandOptions = {
     body: {
       type: "object",
       properties: {
-        providerName: {type: "string", pattern: "stripe"},
         name: {type: "string"},
         description: {type: "string"},
         price: {type: "number"},
@@ -72,11 +71,11 @@ const POST_OPTIONS: RouteShorthandOptions = {
 };
 
 async function post(request: FastifyRequest, reply: FastifyReply) {
-  const {providerName, ...metadata} = request.body as Record<string, any>;
+  const metadata = request.body as SubscriptionMetadata;
 
   const subscription = await SubscriptionDataProvider.create(
-    metadata as SubscriptionMetadata,
-    providerName,
+    metadata,
+    "stripe",
   );
 
   reply.status(201).send(subscription.toDict());

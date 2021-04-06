@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-import Provider from "./Providers";
+import Provider, {SubscribedCustomer} from "./Providers";
 import {SubscriptionMetadata} from "../db/Subscription";
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY, {
@@ -8,6 +8,31 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY, {
 });
 
 class StripeProvider extends Provider {
+  async subscribeCustomer(
+    uid: string,
+    email: string,
+    payment: string,
+    subscriptionID: string,
+  ): Promise<SubscribedCustomer> {
+    const customer = await stripe.customers.create({
+      email: email,
+      metadata: {uid},
+      payment_method: payment,
+      invoice_settings: {default_payment_method: payment},
+    });
+
+    const customerSubscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{price: subscriptionID}],
+    });
+
+    return {
+      id: customerSubscription.id,
+      customerID: customer.id,
+      metadata: {status: customerSubscription.status},
+    };
+  }
+
   async getSubscription(id: string): Promise<SubscriptionMetadata> {
     const price = await stripe.prices.retrieve(id);
     const product = await stripe.products.retrieve(price.product as string);

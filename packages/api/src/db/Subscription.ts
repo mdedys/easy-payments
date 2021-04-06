@@ -43,12 +43,12 @@ class Subscription {
 }
 
 export const SubscriptionDataProvider = {
-  async get(id: string, providerName: string) {
-    const provider = getProvider(providerName);
-
+  async get(id: string) {
     const result = await db.query<
       FaunaDocument<{providerName: string; providerExternalID: string}>
     >(q.Get(q.Ref(q.Collection("subscriptions"), id)));
+
+    const provider = getProvider(result.data.providerName);
 
     const metadata = await provider.getSubscription(
       result.data.providerExternalID,
