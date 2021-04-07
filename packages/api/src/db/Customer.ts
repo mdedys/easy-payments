@@ -8,6 +8,9 @@ export type CustomerMetadata = {
   status: string;
 };
 
+// TODO: Should probably store some sort of deleted + disabled status when
+// a customer is deleted or removed or is not active anymore due to missed payments
+
 class Customer {
   readonly ref: FaunaRef;
   uid: string;
