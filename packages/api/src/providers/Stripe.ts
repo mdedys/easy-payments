@@ -3,25 +3,25 @@ import Stripe from "stripe";
 import Provider, {SubscribedCustomer} from "./Providers";
 import {SubscriptionMetadata} from "../db/Subscription";
 
-const stripe = new Stripe(process.env.STRIPE_API_KEY, {
-  apiVersion: "2020-08-27",
-});
-
 class StripeProvider extends Provider {
+  stripe = new Stripe(process.env.STRIPE_API_KEY, {
+    apiVersion: "2020-08-27",
+  });
+
   async subscribeCustomer(
     uid: string,
     email: string,
     payment: string,
     subscriptionID: string,
   ): Promise<SubscribedCustomer> {
-    const customer = await stripe.customers.create({
+    const customer = await this.stripe.customers.create({
       email: email,
       metadata: {uid},
       payment_method: payment,
       invoice_settings: {default_payment_method: payment},
     });
 
-    const customerSubscription = await stripe.subscriptions.create({
+    const customerSubscription = await this.stripe.subscriptions.create({
       customer: customer.id,
       items: [{price: subscriptionID}],
     });
@@ -34,8 +34,10 @@ class StripeProvider extends Provider {
   }
 
   async getSubscription(id: string): Promise<SubscriptionMetadata> {
-    const price = await stripe.prices.retrieve(id);
-    const product = await stripe.products.retrieve(price.product as string);
+    const price = await this.stripe.prices.retrieve(id);
+    const product = await this.stripe.products.retrieve(
+      price.product as string,
+    );
     return {
       name: product.name,
       description: product.description,
@@ -48,12 +50,12 @@ class StripeProvider extends Provider {
   }
 
   async createSubscription(metadata: SubscriptionMetadata) {
-    const product = await stripe.products.create({
+    const product = await this.stripe.products.create({
       name: metadata.name,
       description: metadata.description,
     });
 
-    const price = await stripe.prices.create({
+    const price = await this.stripe.prices.create({
       product: product.id,
       unit_amount: metadata.price * 100,
       currency: metadata.currency,
