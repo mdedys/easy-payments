@@ -6,7 +6,8 @@
   ],
   "scripts": {
     "postinstall": "husky install",
-    "api": "yarn workspace @easy-payments/api"
+    "api": "yarn workspace @easy-payments/api",
+    "webapp": "yarn workspace @easy-payments/webapp"
   },
   "devDependencies": {
     "@types/eslint": "^7",
